@@ -1,0 +1,5 @@
+{"total":3,"data":[
+ {"id":"SP","title":"Special","series_id":"S1","series_title":"Frieren","season_number":1,"episode_number":null,"duration_ms":600000},
+ {"id":"E2","title":"Folge 2","series_id":"S1","series_title":"Frieren","season_number":1,"episode_number":2,"duration_ms":1440000},
+ {"id":"E1","title":"Folge 1","series_id":"S1","series_title":"Frieren","season_number":1,"episode_number":1,"duration_ms":1440000}
+]}

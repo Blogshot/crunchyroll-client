@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,7 +23,6 @@ import androidx.tv.material3.darkColorScheme
 import com.github.blogshot.crtv.AppContainer
 import com.github.blogshot.crtv.CrApp
 import com.github.blogshot.crtv.core.auth.SessionState
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +46,7 @@ private fun App(container: AppContainer) {
         SessionState.LoggedOut -> LoginScreen(
             viewModel { LoginViewModel(container.authApi, container.session) },
         )
-        is SessionState.LoggedIn -> HomePlaceholder(container)
+        is SessionState.LoggedIn -> AppShell(container)
     }
 }
 
@@ -68,17 +66,6 @@ private fun LoginScreen(vm: LoginViewModel) {
                 Button(onClick = vm::start) { Text("Erneut versuchen") }
             }
         }
-    }
-}
-
-/** Platzhalter bis M2: zeigt, dass die Session steht. */
-@Composable
-private fun HomePlaceholder(container: AppContainer) {
-    val scope = rememberCoroutineScope()
-    Centered {
-        Text("Angemeldet", style = MaterialTheme.typography.displayMedium)
-        Text("Startseite folgt in M2.", style = MaterialTheme.typography.bodyLarge)
-        Button(onClick = { scope.launch { container.session.logout() } }) { Text("Abmelden") }
     }
 }
 

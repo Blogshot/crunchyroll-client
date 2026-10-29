@@ -7,6 +7,10 @@ import com.github.blogshot.crtv.core.api.ClientConfig
 import com.github.blogshot.crtv.core.api.CrunchyrollAuthApi
 import com.github.blogshot.crtv.core.api.TokenAuthenticator
 import com.github.blogshot.crtv.core.auth.SessionManager
+import com.github.blogshot.crtv.core.auth.SessionState
+import com.github.blogshot.crtv.core.content.ContentApi
+import com.github.blogshot.crtv.core.content.CrunchyrollContentApi
+import com.github.blogshot.crtv.core.content.MemoryCache
 import com.github.blogshot.crtv.data.EncryptedTokenStore
 import com.github.blogshot.crtv.data.deviceId
 import kotlinx.coroutines.CoroutineScope
@@ -43,4 +47,12 @@ class AppContainer(context: Context) {
         .addInterceptor(AuthInterceptor(session, config.userAgent))
         .authenticator(TokenAuthenticator(session, config.userAgent))
         .build()
+
+    val content: ContentApi = CrunchyrollContentApi(apiHttp)
+
+    /** Überlebt Navigation und Tabwechsel; Bildschirme zeigen beim Zurückkehren sofort den letzten Stand. */
+    val cache = MemoryCache()
+
+    val accountId: String
+        get() = (session.state.value as? SessionState.LoggedIn)?.accountId.orEmpty()
 }

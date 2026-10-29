@@ -1,0 +1,7 @@
+{"total":2,"data":[
+ {"playhead":754,"fully_watched":false,"panel":{"id":"E1","type":"episode","title":"Folge 1",
+   "images":{"thumbnail":[[{"source":"https://img/t-320.jpg","width":320},{"source":"https://img/t-640.jpg","width":640},{"source":"https://img/t-1280.jpg","width":1280}]]},
+   "episode_metadata":{"series_id":"S1","series_title":"Frieren","season_number":1,"episode_number":1,"duration_ms":1440000}}},
+ {"playhead":1420,"fully_watched":true,"panel":{"id":"E0","type":"episode","title":"Prolog",
+   "episode_metadata":{"series_id":"S1","series_title":"Frieren","season_number":1,"episode_number":0,"duration_ms":1440000}}}
+]}

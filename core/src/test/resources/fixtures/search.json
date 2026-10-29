@@ -1,0 +1,4 @@
+{"total":2,"data":[
+ {"type":"series","count":1,"items":[{"id":"S1","type":"series","title":"Frieren","images":{"poster_tall":[[{"source":"https://img/p-480.jpg","width":480}]]}}]},
+ {"type":"movie_listing","count":1,"items":[{"id":"M1","type":"movie_listing","title":"Ein Film"}]}
+]}
