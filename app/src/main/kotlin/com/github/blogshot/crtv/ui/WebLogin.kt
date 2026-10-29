@@ -21,6 +21,57 @@ private const val LOGIN_URL = "https://www.crunchyroll.com/login"
 private const val COOKIE_HOST = "https://www.crunchyroll.com"
 
 /**
+ * Eigenes Stylesheet für die offizielle Seite: transparenter Hintergrund (dahinter liegt der App-Hintergrund),
+ * Formularflächen als Mattglas, Akzent in Orange, deutlicher Fokus für die Fernbedienung. Absichtlich nur
+ * allgemeine Selektoren, damit eine geänderte Seite nicht unbenutzbar wird.
+ */
+private const val GLASS_CSS = """
+html, body, main, header, footer, #root, #__next, [class*="app"], [class*="page"], [class*="layout"] {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+body { color: #f2f2f5 !important; }
+form, [class*="card"], [class*="modal"], [class*="panel"], [class*="container"] > div:has(form) {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 24px !important;
+  backdrop-filter: blur(24px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
+}
+form { padding: 32px !important; }
+input, select, textarea {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #f2f2f5 !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 14px !important;
+}
+input::placeholder { color: #a0a0ae !important; }
+button[type="submit"], [class*="button--primary"], [class*="primary"] button {
+  background: #f47521 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 14px !important;
+}
+a { color: #ffb27a !important; }
+*:focus, *:focus-visible {
+  outline: 3px solid #f47521 !important;
+  outline-offset: 3px !important;
+}
+"""
+
+/** Fügt das Stylesheet einmalig ein; liest nichts aus der Seite. */
+private fun WebView.injectGlass() {
+    val css = GLASS_CSS.replace("\\", "\\\\").replace("`", "\\`")
+    evaluateJavascript(
+        "(function(){if(document.getElementById('crtv-glass'))return;" +
+            "var s=document.createElement('style');s.id='crtv-glass';s.textContent=`$css`;" +
+            "(document.head||document.documentElement).appendChild(s);})();",
+        null,
+    )
+}
+
+/**
  * Offizielle Crunchyroll-Anmeldung in einer WebView innerhalb der App. Sobald die Seite das Sitzungs-Cookie
  * `etp_rt` setzt, wird es an [onSession] übergeben und gegen Token getauscht. Die App sieht das Passwort nie.
  */
@@ -66,11 +117,17 @@ fun WebLogin(userAgent: String, onSession: (String) -> Unit, onCancel: () -> Uni
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.userAgentString = userAgent
+                // Transparent, damit der weichgezeichnete App-Hintergrund durch die Glasflächen scheint.
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 cookies.setAcceptCookie(true)
                 cookies.setAcceptThirdPartyCookies(this, true)
                 webViewClient = object : WebViewClient() {
                     override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) = check()
-                    override fun onPageFinished(view: WebView, url: String) = check()
+                    override fun onPageCommitVisible(view: WebView, url: String) = view.injectGlass()
+                    override fun onPageFinished(view: WebView, url: String) {
+                        view.injectGlass()
+                        check()
+                    }
                 }
                 isFocusable = true
                 isFocusableInTouchMode = true
