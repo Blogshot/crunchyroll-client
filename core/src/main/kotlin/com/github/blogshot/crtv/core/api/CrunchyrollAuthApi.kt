@@ -4,6 +4,7 @@ import com.github.blogshot.crtv.core.auth.AuthApi
 import com.github.blogshot.crtv.core.auth.AuthTokens
 import com.github.blogshot.crtv.core.auth.DeviceCode
 import com.github.blogshot.crtv.core.auth.DevicePoll
+import com.github.blogshot.crtv.core.auth.LoginResult
 import com.github.blogshot.crtv.core.auth.TokenResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,12 +24,42 @@ import java.io.IOException
 class CrunchyrollAuthApi(
     private val http: OkHttpClient,
     private val config: ClientConfig,
+    private val credentials: ClientCredentialsProvider,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AuthApi {
 
-    override suspend fun refresh(refreshToken: String, profileId: String?): TokenResult {
+    override suspend fun passwordLogin(username: String, password: String): LoginResult {
         val form = FormBody.Builder()
-            .add("grant_type", "refresh_token")
+            .add("grant_type", "password")
+            .add("username", username)
+            .add("password", password)
+            .add("scope", "offline_access")
+            .addDevice()
+            .build()
+        return try {
+            val (code, body) = post("/auth/v1/token", form)
+            when {
+                code in 200..299 -> LoginResult.Success(json.decodeFromString<TokenResponse>(body).toTokens())
+                errorCode(body) == "invalid_client" -> {
+                    credentials.invalidate()
+                    LoginResult.MissingClientId
+                }
+                errorCode(body) == "invalid_grant" || code == 401 -> LoginResult.WrongCredentials
+                else -> LoginResult.Failed(IOException("HTTP $code"))
+            }
+        } catch (e: MissingClientCredentialsException) {
+            LoginResult.MissingClientId
+        } catch (e: IOException) {
+            LoginResult.Failed(e)
+        } catch (e: kotlinx.serialization.SerializationException) {
+            LoginResult.Failed(e)
+        }
+    }
+
+    override suspend fun refresh(refreshToken: String, profileId: String?, switchProfile: Boolean): TokenResult {
+        val form = FormBody.Builder()
+            // Profilwechsel hat bei Crunchyroll einen eigenen Grant-Typ (in M0 gegen die echte API prüfen).
+            .add("grant_type", if (switchProfile) "refresh_token_profile_id" else "refresh_token")
             .add("refresh_token", refreshToken)
             .add("scope", "offline_access")
             .addDevice()
@@ -74,14 +105,19 @@ class CrunchyrollAuthApi(
         add("device_type", config.deviceType)
     }
 
-    private suspend fun post(path: String, form: FormBody): Pair<Int, String> = withContext(Dispatchers.IO) {
+    private suspend fun post(path: String, form: FormBody): Pair<Int, String> {
+        val client = credentials.get()
+        return withContext(Dispatchers.IO) { postBlocking(path, form, client) }
+    }
+
+    private fun postBlocking(path: String, form: FormBody, client: ClientCredentials): Pair<Int, String> {
         val request = Request.Builder()
             .url(config.baseUrl + path)
-            .header("Authorization", Credentials.basic(config.clientId, config.clientSecret))
+            .header("Authorization", Credentials.basic(client.clientId, client.clientSecret))
             .header("User-Agent", config.userAgent)
             .post(form)
             .build()
-        http.newCall(request).execute().use { it.code to it.body?.string().orEmpty() }
+        return http.newCall(request).execute().use { it.code to it.body?.string().orEmpty() }
     }
 
     private fun errorCode(body: String): String? =

@@ -11,7 +11,7 @@ sealed interface SessionState {
     /** Gespeicherte Session noch nicht geladen. */
     data object Unknown : SessionState
     data object LoggedOut : SessionState
-    data class LoggedIn(val accountId: String?, val profileId: String?) : SessionState
+    data class LoggedIn(val accountId: String?, val profileId: String?, val profileConfirmed: Boolean) : SessionState
 }
 
 // IOException, damit OkHttp-Interceptors die Fehler sauber an den Aufrufer durchreichen.
@@ -71,12 +71,22 @@ class SessionManager(
         }
     }
 
-    /** Holt ein Token für ein anderes Profil desselben Kontos. */
+    /** Holt ein Token für das gewählte Profil desselben Kontos und merkt sich die Wahl. */
     suspend fun switchProfile(profileId: String) = mutex.withLock {
         ensureLoaded()
         val current = tokens ?: throw SessionExpiredException()
-        refreshLocked(current, profileId)
+        refreshLocked(current, profileId, switch = true, confirm = true)
         Unit
+    }
+
+    /** Das aktuelle Profil bestätigen, ohne neues Token (z. B. wenn das Konto nur ein Profil hat). */
+    suspend fun confirmProfile() = mutex.withLock {
+        ensureLoaded()
+        val current = tokens ?: throw SessionExpiredException()
+        if (current.profileConfirmed) return@withLock
+        val next = current.copy(profileConfirmed = true)
+        store.save(next)
+        setTokens(next)
     }
 
     suspend fun onLoggedIn(newTokens: AuthTokens) = mutex.withLock {
@@ -91,12 +101,18 @@ class SessionManager(
         setTokens(null)
     }
 
-    private suspend fun refreshLocked(current: AuthTokens, profileId: String?): AuthTokens =
-        when (val result = api.refresh(current.refreshToken, profileId)) {
+    private suspend fun refreshLocked(
+        current: AuthTokens,
+        profileId: String?,
+        switch: Boolean = false,
+        confirm: Boolean = false,
+    ): AuthTokens =
+        when (val result = api.refresh(current.refreshToken, profileId, switch)) {
             is TokenResult.Success -> {
                 val next = result.tokens.copy(
                     accountId = result.tokens.accountId ?: current.accountId,
                     profileId = result.tokens.profileId ?: profileId,
+                    profileConfirmed = confirm || current.profileConfirmed,
                 )
                 // Erst speichern, dann benutzen: Das alte Refresh-Token ist ab jetzt verbraucht.
                 store.save(next)
@@ -120,6 +136,6 @@ class SessionManager(
     private fun setTokens(value: AuthTokens?) {
         tokens = value
         _state.value = if (value == null) SessionState.LoggedOut
-        else SessionState.LoggedIn(value.accountId, value.profileId)
+        else SessionState.LoggedIn(value.accountId, value.profileId, value.profileConfirmed)
     }
 }

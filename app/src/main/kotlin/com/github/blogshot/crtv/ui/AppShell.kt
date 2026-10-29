@@ -37,6 +37,9 @@ import com.github.blogshot.crtv.ui.search.SearchScreen
 import com.github.blogshot.crtv.ui.search.SearchViewModel
 import com.github.blogshot.crtv.ui.series.SeriesScreen
 import com.github.blogshot.crtv.ui.series.SeriesViewModel
+import com.github.blogshot.crtv.ui.theme.CrColors
+import com.github.blogshot.crtv.ui.theme.glass
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
 
 private enum class Tab(val route: String, val label: String) {
@@ -62,10 +65,15 @@ fun AppShell(container: AppContainer) {
 
     Row(Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier.width(220.dp).fillMaxHeight().padding(vertical = 32.dp, horizontal = 12.dp),
+            modifier = Modifier
+                .padding(16.dp)
+                .width(220.dp)
+                .fillMaxHeight()
+                .glass(RoundedCornerShape(24.dp))
+                .padding(vertical = 24.dp, horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Crunchyroll", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(12.dp))
+            Text("Crunchyroll", style = MaterialTheme.typography.titleMedium, color = CrColors.Accent, modifier = Modifier.padding(12.dp))
             Tab.entries.forEach { tab ->
                 val active = nav.isOnTab(tab, currentRoute)
                 ListItem(
@@ -86,6 +94,11 @@ fun AppShell(container: AppContainer) {
             }
             Box(Modifier.weight(1f))
             ListItem(
+                selected = currentRoute == "profiles",
+                onClick = { nav.navigate("profiles") { launchSingleTop = true } },
+                headlineContent = { Text("Profil wechseln") },
+            )
+            ListItem(
                 selected = false,
                 onClick = { scope.launch { container.session.logout() } },
                 headlineContent = { Text("Abmelden") },
@@ -105,6 +118,14 @@ fun AppShell(container: AppContainer) {
             composable("series/{id}") { entry ->
                 val id = entry.arguments?.getString("id").orEmpty()
                 SeriesScreen(viewModel { SeriesViewModel(container, id) }, play)
+            }
+            composable("profiles") {
+                ProfileScreen(
+                    viewModel { ProfileViewModel(container) },
+                    // Neues Profil: alle Tabs mit frischem Zustand neu aufbauen.
+                    onDone = { nav.navigate(Tab.Home.route) { popUpTo(nav.graph.id) { inclusive = true } } },
+                    onLogout = { scope.launch { container.session.logout() } },
+                )
             }
             composable("player/{id}") { entry ->
                 PlayerPlaceholder(entry.arguments?.getString("id").orEmpty())

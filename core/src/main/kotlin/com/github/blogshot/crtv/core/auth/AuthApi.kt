@@ -26,8 +26,18 @@ sealed interface DevicePoll {
     data class Failed(val cause: Throwable?) : DevicePoll
 }
 
+sealed interface LoginResult {
+    data class Success(val tokens: AuthTokens) : LoginResult
+    data object WrongCredentials : LoginResult
+    /** Keine Client-Kennung verfügbar: UI fragt den Nutzer danach. */
+    data object MissingClientId : LoginResult
+    data class Failed(val cause: Throwable?) : LoginResult
+}
+
 interface AuthApi {
-    suspend fun refresh(refreshToken: String, profileId: String?): TokenResult
+    suspend fun passwordLogin(username: String, password: String): LoginResult
+    /** @param switchProfile true, wenn auf [profileId] gewechselt werden soll (eigener Grant-Typ). */
+    suspend fun refresh(refreshToken: String, profileId: String?, switchProfile: Boolean = false): TokenResult
     suspend fun requestDeviceCode(): DeviceCode
     suspend fun pollDeviceCode(deviceCode: String): DevicePoll
 }

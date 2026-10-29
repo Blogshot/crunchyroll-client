@@ -27,11 +27,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew :core:test
       # ubuntu-latest bringt ein Android SDK mit (ANDROID_HOME ist gesetzt).
+      # Keine Secrets im APK: Login und Client-Kennung kommen zur Laufzeit.
       - name: APK bauen
-        env:
-          CR_CLIENT_ID: ${{ secrets.CR_CLIENT_ID }}
-          CR_CLIENT_SECRET: ${{ secrets.CR_CLIENT_SECRET }}
-          CR_USER_AGENT: ${{ secrets.CR_USER_AGENT }}
         run: ./gradlew :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:

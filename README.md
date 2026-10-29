@@ -3,7 +3,7 @@
 Inoffizieller Crunchyroll-Client für Android TV / Google TV, gebaut für zwei Dinge, die die offizielle App nicht
 zuverlässig kann: **Sessions, die halten**, und **Browsing, das sich selbst aktualisiert**.
 
-> **Status:** M1 – Grundgerüst und Session-Handling. Startseite (M2) und Player (M3) folgen.
+> **Status:** Login, Profilauswahl und Browsing stehen; der Player (M3) folgt.
 > Architektur: [docs/DESIGN.md](docs/DESIGN.md).
 
 **Kein Umgehen von Schutzmechanismen.** Wiedergabe läuft über Widevine und den Lizenzserver von Crunchyroll mit dem
@@ -26,17 +26,19 @@ Voraussetzung: JDK 17+, für `app` ein Android SDK (compileSdk 36).
 ./gradlew :app:assembleDebug      # APK nach app/build/outputs/apk/debug/
 ```
 
-### Client-Kennung
+### Login und Client-Kennung
 
-Die API erwartet die Client-Kennung einer Crunchyroll-App. Sie steht **nicht** im Repo. Lokal in `local.properties`:
+Im APK stehen keine Zugangsdaten. Die App fragt beim ersten Start nach E-Mail und Passwort (das Passwort wird nur
+für die Anmeldung gesendet, nicht gespeichert) und danach nach dem Profil („Wer schaut?“).
 
-```properties
-CR_CLIENT_ID=...
-CR_CLIENT_SECRET=...
-CR_USER_AGENT=...
-```
+Zusätzlich verlangt Crunchyroll eine Client-Kennung der App. Die liest die App zur Laufzeit von der Startseite
+von crunchyroll.com (öffentliche Kennung der Web-App) und speichert sie verschlüsselt. Klappt das nicht, fragt der
+Login-Bildschirm einmal danach.
 
-In GitHub Actions als Repository-Secrets mit denselben Namen. Ohne Werte baut die App, der Login schlägt aber fehl.
+### API-Probe
+
+Der Workflow **API-Probe** (manuell starten oder auf `probe/<name>` pushen) meldet sich mit den Repository-Secrets
+`CR_USERNAME`/`CR_PASSWORD` an und prüft die Endpunkte. Er gibt nur Statuscodes, Anzahlen und Feldnamen aus.
 
 ## Installation auf dem TV
 

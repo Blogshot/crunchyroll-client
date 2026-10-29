@@ -1,12 +1,7 @@
 package com.github.blogshot.crtv.core.api
 
-/**
- * Kennung des Clients gegenüber Crunchyroll. Die Werte stehen nicht im Repo, sondern kommen aus
- * `local.properties` bzw. CI-Secrets (siehe README).
- */
+/** Geräte- und Endpunktdaten. Die Client-Kennung kommt separat aus einem [ClientCredentialsProvider]. */
 data class ClientConfig(
-    val clientId: String,
-    val clientSecret: String,
     val userAgent: String,
     /** Feste, zufällige ID dieses Geräts; wird einmal erzeugt und gespeichert. */
     val deviceId: String,

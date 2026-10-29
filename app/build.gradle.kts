@@ -1,19 +1,9 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
-
-// Client-Kennung für die Crunchyroll-API: aus local.properties oder Umgebungsvariablen (CI-Secrets),
-// niemals im Repo. Ohne Werte baut die App trotzdem, der Login schlägt dann fehl.
-val localProps = Properties().apply {
-    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
-}
-fun secret(name: String): String = (localProps.getProperty(name) ?: System.getenv(name) ?: "")
-    .replace("\\", "\\\\").replace("\"", "\\\"")
 
 android {
     namespace = "com.github.blogshot.crtv"
@@ -26,10 +16,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-
-        buildConfigField("String", "CR_CLIENT_ID", "\"${secret("CR_CLIENT_ID")}\"")
-        buildConfigField("String", "CR_CLIENT_SECRET", "\"${secret("CR_CLIENT_SECRET")}\"")
-        buildConfigField("String", "CR_USER_AGENT", "\"${secret("CR_USER_AGENT")}\"")
     }
 
     // Fester Debug-Schlüssel (nicht geheim): CI- und lokale Builds lassen sich übereinander installieren.
@@ -49,7 +35,6 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 
     compileOptions {
