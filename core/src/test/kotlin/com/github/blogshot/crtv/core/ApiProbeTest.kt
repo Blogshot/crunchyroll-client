@@ -56,6 +56,10 @@ class ApiProbeTest {
         log("password login: ${login::class.simpleName} ${(login as? LoginResult.Failed)?.cause?.message.orEmpty()}")
         if (login !is LoginResult.Success) {
             rawLogin(http, creds.get(), config)
+            rawGrant(http, creds.get(), "anonym (client_id)", "grant_type" to "client_id")
+            rawGrant(http, creds.get(), "etp_rt_cookie ohne Cookie", "grant_type" to "etp_rt_cookie")
+            val dc = runCatching { auth.requestDeviceCode() }
+            log("device code (Web-Kennung): ${if (dc.isSuccess) "ok" else "fehlgeschlagen (${dc.exceptionOrNull()?.message})"}")
             return@runBlocking
         }
         log("token: accountId=${login.tokens.accountId != null} profileId=${login.tokens.profileId != null}")
@@ -140,6 +144,22 @@ class ApiProbeTest {
                 }
             }.onFailure { log("raw login ($name): Fehler ${it.message}") }
         }
+    }
+
+    private fun rawGrant(http: OkHttpClient, client: ClientCredentials, name: String, vararg fields: Pair<String, String>) {
+        val form = okhttp3.FormBody.Builder().apply { fields.forEach { (k, v) -> add(k, v) } }.build()
+        val req = Request.Builder()
+            .url("https://www.crunchyroll.com/auth/v1/token")
+            .header("Authorization", okhttp3.Credentials.basic(client.clientId, client.clientSecret))
+            .header("User-Agent", ua)
+            .post(form)
+            .build()
+        runCatching {
+            http.newCall(req).execute().use { r ->
+                val obj = runCatching { Json.parseToJsonElement(r.body?.string().orEmpty()) as? JsonObject }.getOrNull()
+                log("raw grant ($name): HTTP ${r.code} error=${obj?.get("error")} keys=${obj?.keys?.sorted()}")
+            }
+        }.onFailure { log("raw grant ($name): Fehler ${it.message}") }
     }
 
     /** Nur Feldnamen der Antwort und des ersten Elements in `data`/`profiles`. */
