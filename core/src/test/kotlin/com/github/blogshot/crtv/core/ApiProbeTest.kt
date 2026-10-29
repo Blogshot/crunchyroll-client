@@ -53,8 +53,11 @@ class ApiProbeTest {
         val auth = CrunchyrollAuthApi(http, config, creds)
 
         val login = auth.passwordLogin(user, pass)
-        log("password login: ${login::class.simpleName}")
-        if (login !is LoginResult.Success) return@runBlocking
+        log("password login: ${login::class.simpleName} ${(login as? LoginResult.Failed)?.cause?.message.orEmpty()}")
+        if (login !is LoginResult.Success) {
+            rawLogin(http, creds.get(), config)
+            return@runBlocking
+        }
         log("token: accountId=${login.tokens.accountId != null} profileId=${login.tokens.profileId != null}")
 
         val code = runCatching { auth.requestDeviceCode() }
@@ -95,6 +98,48 @@ class ApiProbeTest {
         shape(api, "/content/v2/discover/$acc/watchlist?locale=de-DE&n=1")
         shape(api, "/content/v2/discover/browse?locale=de-DE&n=1")
         shape(api, "/accounts/v1/me/multiprofile")
+    }
+
+    /** Diagnose bei fehlgeschlagenem Login: Status, Fehlercodes und ob Cloudflare antwortet. Keine Werte. */
+    private fun rawLogin(http: OkHttpClient, client: ClientCredentials, config: ClientConfig) {
+        val variants = listOf(
+            "mit Geräteangaben" to true,
+            "ohne Geräteangaben" to false,
+        )
+        for ((name, withDevice) in variants) {
+            val form = okhttp3.FormBody.Builder()
+                .add("grant_type", "password")
+                .add("username", user)
+                .add("password", pass)
+                .add("scope", "offline_access")
+                .apply {
+                    if (withDevice) {
+                        add("device_id", config.deviceId)
+                        add("device_name", config.deviceName)
+                        add("device_type", config.deviceType)
+                    }
+                }
+                .build()
+            val req = Request.Builder()
+                .url("https://www.crunchyroll.com/auth/v1/token")
+                .header("Authorization", okhttp3.Credentials.basic(client.clientId, client.clientSecret))
+                .header("User-Agent", ua)
+                .post(form)
+                .build()
+            runCatching {
+                http.newCall(req).execute().use { r ->
+                    val body = r.body?.string().orEmpty()
+                    val obj = runCatching { Json.parseToJsonElement(body) as? JsonObject }.getOrNull()
+                    val cf = r.header("server")?.contains("cloudflare", true) == true
+                    val html = body.trimStart().startsWith("<")
+                    log(
+                        "raw login ($name): HTTP ${r.code} server-cloudflare=$cf html=$html " +
+                            "error=${obj?.get("error")} code=${obj?.get("code")} keys=${obj?.keys?.sorted()} " +
+                            "cf-mitigated=${r.header("cf-mitigated")}",
+                    )
+                }
+            }.onFailure { log("raw login ($name): Fehler ${it.message}") }
+        }
     }
 
     /** Nur Feldnamen der Antwort und des ersten Elements in `data`/`profiles`. */
