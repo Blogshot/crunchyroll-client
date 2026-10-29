@@ -30,6 +30,9 @@ import java.util.UUID
 class ApiProbeTest {
     private val user = System.getenv("CR_USERNAME").orEmpty()
     private val pass = System.getenv("CR_PASSWORD").orEmpty()
+    /** Optional: Kennung einer App, die den Passwort-Grant erlaubt (z. B. der TV-App). */
+    private val appClientId = System.getenv("CR_APP_CLIENT_ID").orEmpty()
+    private val appClientSecret = System.getenv("CR_APP_CLIENT_SECRET").orEmpty()
     private val ua = "Mozilla/5.0 (Linux; Android 12; Google TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
     private fun log(msg: String) = println("PROBE $msg")
@@ -49,6 +52,10 @@ class ApiProbeTest {
             override suspend fun save(credentials: ClientCredentials) { v = credentials }
         }
         val creds = DefaultClientCredentialsProvider(store, website)
+        if (appClientId.isNotBlank()) {
+            creds.setManually(ClientCredentials(appClientId, appClientSecret))
+            log("client id: aus CR_APP_CLIENT_ID")
+        }
         val config = ClientConfig(userAgent = ua, deviceId = UUID.randomUUID().toString())
         val auth = CrunchyrollAuthApi(http, config, creds)
 

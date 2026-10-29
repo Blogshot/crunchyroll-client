@@ -27,4 +27,7 @@ jobs:
           # Ursprünglich als CR_CLIENT_ID/CR_CLIENT_SECRET angelegt; CR_USERNAME/CR_PASSWORD haben Vorrang.
           CR_USERNAME: ${{ secrets.CR_USERNAME || secrets.CR_CLIENT_ID }}
           CR_PASSWORD: ${{ secrets.CR_PASSWORD || secrets.CR_CLIENT_SECRET }}
+          # Optional: Kennung einer App mit Passwort-Grant; ohne sie wird die Web-Kennung benutzt.
+          CR_APP_CLIENT_ID: ${{ secrets.CR_APP_CLIENT_ID }}
+          CR_APP_CLIENT_SECRET: ${{ secrets.CR_APP_CLIENT_SECRET }}
         run: set -o pipefail; ./gradlew -PcoreOnly :core:test --tests '*ApiProbe*' -i | grep -E '^\s*PROBE|FAILED|BUILD'
