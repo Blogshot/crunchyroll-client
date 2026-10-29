@@ -107,7 +107,7 @@ class SessionManager(
         switch: Boolean = false,
         confirm: Boolean = false,
     ): AuthTokens =
-        when (val result = api.refresh(current.refreshToken, profileId, switch)) {
+        when (val result = api.refresh(current.refreshToken, profileId, switch, current.refreshViaCookie)) {
             is TokenResult.Success -> {
                 val next = result.tokens.copy(
                     accountId = result.tokens.accountId ?: current.accountId,

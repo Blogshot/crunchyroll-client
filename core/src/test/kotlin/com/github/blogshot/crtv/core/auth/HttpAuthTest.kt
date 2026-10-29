@@ -84,6 +84,30 @@ class HttpAuthTest {
     }
 
     @Test
+    fun `Website-Sitzung wird getauscht und per Cookie erneuert`() = runTest {
+        val api = CrunchyrollAuthApi(OkHttpClient(), config(), creds) { now }
+        server.enqueue(MockResponse().setBody("""{"access_token":"a1","expires_in":300,"account_id":"acc"}"""))
+        val login = api.exchangeWebSession("cookie0") as LoginResult.Success
+        assertEquals("cookie0", login.tokens.refreshToken)
+        assertTrue(login.tokens.refreshViaCookie)
+        val req = server.takeRequest()
+        assertEquals("etp_rt=cookie0", req.getHeader("Cookie"))
+        assertTrue(req.body.readUtf8().contains("grant_type=etp_rt_cookie"))
+
+        // Server rotiert das Cookie: das neue wird übernommen.
+        server.enqueue(
+            MockResponse().setBody("""{"access_token":"a2","expires_in":300}""")
+                .addHeader("Set-Cookie", "etp_rt=cookie1; Path=/; HttpOnly"),
+        )
+        val refreshed = api.refresh("cookie0", null, viaCookie = true) as TokenResult.Success
+        assertEquals("cookie1", refreshed.tokens.refreshToken)
+        assertTrue(refreshed.tokens.refreshViaCookie)
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("grant_type=etp_rt_cookie"))
+        assertTrue(!body.contains("refresh_token="))
+    }
+
+    @Test
     fun `401 erneuert einmal und wiederholt den Request`() {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {

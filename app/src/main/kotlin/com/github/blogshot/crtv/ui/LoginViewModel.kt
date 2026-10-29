@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 sealed interface LoginUiState {
+    /** Startbildschirm: offizielle Anmeldeseite öffnen (Standard) oder eigenes Formular mit eigener Client-ID. */
+    data class Start(val busy: Boolean = false, val message: String? = null) : LoginUiState
+    /** Offizielle Login-Seite in der WebView. */
+    data object Web : LoginUiState
     data class Form(val busy: Boolean = false, val message: String? = null) : LoginUiState
     /** Weder gespeichert noch auf crunchyroll.com gefunden: einmal von Hand eingeben. */
     data class NeedClientId(val message: String? = null) : LoginUiState
@@ -32,9 +36,36 @@ class LoginViewModel(
     private val session: SessionManager,
     private val clientCredentials: DefaultClientCredentialsProvider,
 ) : ViewModel() {
-    private val _state = MutableStateFlow<LoginUiState>(LoginUiState.Form())
+    private val _state = MutableStateFlow<LoginUiState>(LoginUiState.Start())
     val state: StateFlow<LoginUiState> = _state
     private var job: Job? = null
+
+    fun openWebLogin() {
+        job?.cancel()
+        _state.value = LoginUiState.Web
+    }
+
+    fun openPasswordForm() {
+        job?.cancel()
+        _state.value = LoginUiState.Form()
+    }
+
+    /** Die offizielle Seite hat die Sitzung gesetzt: gegen Token tauschen. */
+    fun onWebSession(etpRt: String) {
+        job?.cancel()
+        job = viewModelScope.launch {
+            _state.value = LoginUiState.Start(busy = true)
+            _state.value = when (val r = auth.exchangeWebSession(etpRt)) {
+                is LoginResult.Success -> {
+                    session.onLoggedIn(r.tokens)
+                    LoginUiState.Start()
+                }
+                LoginResult.MissingClientId -> LoginUiState.NeedClientId()
+                LoginResult.WrongCredentials,
+                is LoginResult.Failed -> LoginUiState.Start(message = "Anmeldung konnte nicht abgeschlossen werden. Bitte erneut versuchen.")
+            }
+        }
+    }
 
     fun login(email: String, password: String) {
         if (email.isBlank() || password.isEmpty()) {
@@ -63,13 +94,13 @@ class LoginViewModel(
         }
         viewModelScope.launch {
             clientCredentials.setManually(ClientCredentials(id.trim(), secret.trim()))
-            _state.value = LoginUiState.Form(message = "Client-ID gespeichert. Bitte erneut anmelden.")
+            _state.value = LoginUiState.Start(message = "Client-ID gespeichert. Bitte erneut anmelden.")
         }
     }
 
-    fun backToForm() {
+    fun backToStart() {
         job?.cancel()
-        _state.value = LoginUiState.Form()
+        _state.value = LoginUiState.Start()
     }
 
     /** Gerätecode-Login: Code anzeigen, im Intervall pollen, abgelaufene Codes automatisch ersetzen. */

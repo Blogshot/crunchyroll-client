@@ -12,7 +12,9 @@ class FakeAuthApi(private val clock: () -> Long) : AuthApi {
 
     var lastSwitch = false
 
-    override suspend fun refresh(refreshToken: String, profileId: String?, switchProfile: Boolean): TokenResult {
+    override suspend fun exchangeWebSession(etpRt: String) = error("nicht benutzt")
+
+    override suspend fun refresh(refreshToken: String, profileId: String?, switchProfile: Boolean, viaCookie: Boolean): TokenResult {
         lastSwitch = switchProfile
         refreshCalls.incrementAndGet()
         delay(50)

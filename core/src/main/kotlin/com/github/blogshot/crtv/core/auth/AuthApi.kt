@@ -36,8 +36,16 @@ sealed interface LoginResult {
 
 interface AuthApi {
     suspend fun passwordLogin(username: String, password: String): LoginResult
+
+    /** Tauscht die Sitzung der offiziellen Login-Seite (Cookie `etp_rt`) in Token. */
+    suspend fun exchangeWebSession(etpRt: String): LoginResult
     /** @param switchProfile true, wenn auf [profileId] gewechselt werden soll (eigener Grant-Typ). */
-    suspend fun refresh(refreshToken: String, profileId: String?, switchProfile: Boolean = false): TokenResult
+    suspend fun refresh(
+        refreshToken: String,
+        profileId: String?,
+        switchProfile: Boolean = false,
+        viaCookie: Boolean = false,
+    ): TokenResult
     suspend fun requestDeviceCode(): DeviceCode
     suspend fun pollDeviceCode(deviceCode: String): DevicePoll
 }

@@ -13,6 +13,11 @@ data class AuthTokens(
     val profileId: String? = null,
     /** Nutzer hat nach dem Login ein Profil gewählt (oder es gibt nur eines). */
     val profileConfirmed: Boolean = false,
+    /**
+     * Login lief über die Website: [refreshToken] ist dann das `etp_rt`-Cookie, erneuert wird per
+     * `etp_rt_cookie`-Grant statt per Refresh-Token.
+     */
+    val refreshViaCookie: Boolean = false,
 )
 
 /** Persistenter Speicher für die Session. Auf Android verschlüsselt im DataStore. */

@@ -28,12 +28,13 @@ Voraussetzung: JDK 17+, für `app` ein Android SDK (compileSdk 36).
 
 ### Login und Client-Kennung
 
-Im APK stehen keine Zugangsdaten. Die App fragt beim ersten Start nach E-Mail und Passwort (das Passwort wird nur
-für die Anmeldung gesendet, nicht gespeichert) und danach nach dem Profil („Wer schaut?“).
+Im APK stehen keine Zugangsdaten. Zum Anmelden öffnet die App die offizielle Crunchyroll-Anmeldeseite in einer
+WebView; danach tauscht sie die Website-Sitzung (`etp_rt`) gegen Token und fragt nach dem Profil („Wer schaut?“).
+Das Passwort sieht die App dabei nicht.
 
-Zusätzlich verlangt Crunchyroll eine Client-Kennung der App. Die liest die App zur Laufzeit von der Startseite
-von crunchyroll.com (öffentliche Kennung der Web-App) und speichert sie verschlüsselt. Klappt das nicht, fragt der
-Login-Bildschirm einmal danach.
+Crunchyroll verlangt zusätzlich eine Client-Kennung. Die App liest die öffentliche Kennung der Web-App zur Laufzeit
+von crunchyroll.com und speichert sie verschlüsselt. Klappt das nicht, fragt der Login-Bildschirm danach. Mit einer
+selbst eingegebenen Kennung, die den Passwort-Grant erlaubt, steht zusätzlich ein E-Mail/Passwort-Formular bereit.
 
 ### API-Probe
 

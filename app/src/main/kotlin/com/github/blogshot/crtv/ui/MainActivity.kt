@@ -63,6 +63,7 @@ private fun App(container: AppContainer) {
         SessionState.Unknown -> Centered { Text("Lade …") }
         SessionState.LoggedOut -> LoginScreen(
             viewModel { LoginViewModel(container.authApi, container.session, container.clientCredentials) },
+            container.config.userAgent,
         )
         // Nach dem Login zuerst „Wer schaut?“; die Wahl bleibt gespeichert.
         is SessionState.LoggedIn -> if (!s.profileConfirmed) {
@@ -78,8 +79,12 @@ private fun App(container: AppContainer) {
 }
 
 @Composable
-private fun LoginScreen(vm: LoginViewModel) {
+private fun LoginScreen(vm: LoginViewModel, userAgent: String) {
     val state by vm.state.collectAsStateWithLifecycle()
+    if (state == LoginUiState.Web) {
+        WebLogin(userAgent, onSession = vm::onWebSession, onCancel = vm::backToStart)
+        return
+    }
     Centered {
         Column(
             Modifier.width(640.dp).glass(RoundedCornerShape(28.dp)).padding(40.dp),
@@ -87,17 +92,29 @@ private fun LoginScreen(vm: LoginViewModel) {
         ) {
             Text("Crunchyroll", style = MaterialTheme.typography.displaySmall, color = CrColors.Accent)
             when (val s = state) {
+                LoginUiState.Web -> Unit
+                is LoginUiState.Start -> StartPanel(vm, s)
                 is LoginUiState.Form -> PasswordForm(vm, s)
                 is LoginUiState.NeedClientId -> ClientIdForm(vm, s)
                 LoginUiState.CodeLoading -> Text("Hole Anmeldecode …")
                 is LoginUiState.ShowCode -> {
                     Text("Öffne ${s.url} auf deinem Handy und gib diesen Code ein:", style = MaterialTheme.typography.titleMedium)
                     Text(s.userCode, style = MaterialTheme.typography.displayMedium)
-                    OutlinedButton(onClick = vm::backToForm) { Text("Zurück") }
+                    OutlinedButton(onClick = vm::backToStart) { Text("Zurück") }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun StartPanel(vm: LoginViewModel, s: LoginUiState.Start) {
+    Text("Melde dich auf der offiziellen Crunchyroll-Seite an. Die App sieht dein Passwort nicht.", style = MaterialTheme.typography.titleMedium)
+    s.message?.let { Text(it, color = CrColors.Accent) }
+    Button(onClick = vm::openWebLogin, enabled = !s.busy) {
+        Text(if (s.busy) "Melde an …" else "Bei Crunchyroll anmelden")
+    }
+    OutlinedButton(onClick = vm::openPasswordForm, enabled = !s.busy) { Text("E-Mail und Passwort (eigene Client-ID)") }
 }
 
 @Composable
@@ -126,6 +143,7 @@ private fun PasswordForm(vm: LoginViewModel, s: LoginUiState.Form) {
             Text(if (s.busy) "Melde an …" else "Anmelden")
         }
         OutlinedButton(onClick = vm::startDeviceCode, enabled = !s.busy) { Text("Code am Handy") }
+        OutlinedButton(onClick = vm::backToStart, enabled = !s.busy) { Text("Zurück") }
     }
     Text(
         "Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.",
@@ -151,7 +169,7 @@ private fun ClientIdForm(vm: LoginViewModel, s: LoginUiState.NeedClientId) {
     s.message?.let { Text(it, color = CrColors.Accent) }
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Button(onClick = { vm.saveClientId(id, secret) }) { Text("Speichern") }
-        OutlinedButton(onClick = vm::backToForm) { Text("Zurück") }
+        OutlinedButton(onClick = vm::backToStart) { Text("Zurück") }
     }
 }
 
