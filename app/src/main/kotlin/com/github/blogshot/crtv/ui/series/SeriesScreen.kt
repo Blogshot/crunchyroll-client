@@ -20,6 +20,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.FilterChip
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -113,6 +114,7 @@ fun SeriesScreen(vm: SeriesViewModel, onPlay: (EpisodeCard) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun SeasonPicker(seasons: List<Season>, selectedId: String?, onSelect: (String) -> Unit) {
     if (seasons.size < 2) return
