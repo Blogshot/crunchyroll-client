@@ -15,6 +15,7 @@ import com.github.blogshot.crtv.core.content.CrunchyrollContentApi
 import com.github.blogshot.crtv.core.content.CrunchyrollProfileApi
 import com.github.blogshot.crtv.core.content.MemoryCache
 import com.github.blogshot.crtv.core.content.ProfileApi
+import com.github.blogshot.crtv.core.content.ProfileProbe
 import com.github.blogshot.crtv.data.EncryptedClientCredentialsStore
 import com.github.blogshot.crtv.data.EncryptedTokenStore
 import com.github.blogshot.crtv.data.deviceId
@@ -62,6 +63,7 @@ class AppContainer(context: Context) {
 
     val content: ContentApi = CrunchyrollContentApi(apiHttp)
     val profiles: ProfileApi = CrunchyrollProfileApi(apiHttp)
+    val profileProbe = ProfileProbe(baseHttp, config, clientCredentials)
 
     /** Überlebt Navigation und Tabwechsel; Bildschirme zeigen beim Zurückkehren sofort den letzten Stand. */
     val cache = MemoryCache()

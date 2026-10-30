@@ -18,4 +18,14 @@ class ProfileApiTest {
         assertEquals("https://cdn/x.png", profiles[1].avatarUrl)
         assertEquals(true, profiles[0].isPrimary)
     }
+
+    @Test
+    fun `Diagnose zeigt Claim-Namen, aber keine Konto-Werte`() {
+        val payload = java.util.Base64.getUrlEncoder().withoutPadding()
+            .encodeToString("""{"sub":"geheim-123","scope":"account content","profile_id":"p-geheim","exp":1}""".toByteArray())
+        val text = ProfileProbe.describeClaims("x.$payload.y")
+        org.junit.Assert.assertTrue(text, text.contains("scope=account content"))
+        org.junit.Assert.assertTrue(text, text.contains("profile_id"))
+        org.junit.Assert.assertFalse(text, text.contains("geheim"))
+    }
 }

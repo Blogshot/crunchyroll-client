@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,10 +63,11 @@ class ProfileViewModel(private val c: AppContainer) : ViewModel() {
                 try {
                     c.profiles.profiles()
                 } catch (e: HttpStatusException) {
-                    // Token aus einer älteren Anmeldung (mit anderem scope): einmal frisch holen und wiederholen.
                     if (e.code != 401 && e.code != 403) throw e
-                    c.session.forceRefresh()
-                    c.profiles.profiles()
+                    // Endpunkt lehnt das Token ab: Varianten durchprobieren, die erste funktionierende liefert die Profile.
+                    val report = c.profileProbe.run(c.session.accessToken(), c.session.webCookie())
+                    report.rotatedCookie?.let { c.session.adoptWebCookie(it) }
+                    report.profiles ?: throw ProfileProbeFailed(e, report.lines)
                 }
             }.fold(
                 onSuccess = { list ->
@@ -99,6 +104,9 @@ class ProfileViewModel(private val c: AppContainer) : ViewModel() {
     }
 }
 
+/** Profilliste abgelehnt, und keine Variante der Diagnose hat geholfen. */
+class ProfileProbeFailed(cause: Throwable, val lines: List<String>) : Exception(cause.message, cause)
+
 /** „Wer schaut?“ nach dem Login und über die Seitenleiste. */
 @Composable
 fun ProfileScreen(vm: ProfileViewModel, onDone: () -> Unit, onLogout: () -> Unit) {
@@ -116,6 +124,15 @@ fun ProfileScreen(vm: ProfileViewModel, onDone: () -> Unit, onLogout: () -> Unit
             is Loadable.Error -> {
                 Text("Profile konnten nicht geladen werden.", style = MaterialTheme.typography.bodyLarge)
                 ErrorDetail(s.error)
+                (s.error as? ProfileProbeFailed)?.let { failed ->
+                    Column(
+                        Modifier.fillMaxWidth(0.85f).heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text("Diagnose (bitte als Screenshot schicken):", style = MaterialTheme.typography.labelMedium)
+                        failed.lines.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = CrColors.TextMuted) }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Button(onClick = vm::load) { Text("Erneut versuchen") }
                     OutlinedButton(onClick = { vm.skip(onDone) }) { Text("Ohne Profilwahl weiter") }

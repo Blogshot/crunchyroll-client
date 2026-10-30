@@ -97,6 +97,22 @@ class SessionManager(
         setTokens(next)
     }
 
+    /** Das `etp_rt`-Cookie der Website-Anmeldung, falls die Session darüber läuft (für die Profil-Diagnose). */
+    suspend fun webCookie(): String? = mutex.withLock {
+        ensureLoaded()
+        tokens?.takeIf { it.refreshViaCookie }?.refreshToken
+    }
+
+    /** Übernimmt ein vom Server rotiertes `etp_rt`-Cookie, das außerhalb der normalen Erneuerung kam. */
+    suspend fun adoptWebCookie(cookie: String) = mutex.withLock {
+        ensureLoaded()
+        val current = tokens?.takeIf { it.refreshViaCookie } ?: return@withLock
+        if (current.refreshToken == cookie) return@withLock
+        val next = current.copy(refreshToken = cookie)
+        store.save(next)
+        setTokens(next)
+    }
+
     suspend fun onLoggedIn(newTokens: AuthTokens) = mutex.withLock {
         loaded = true
         store.save(newTokens)
