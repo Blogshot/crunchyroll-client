@@ -40,7 +40,7 @@ class CrunchyrollProfileApi(
         parse(body)
     }
 
-    internal fun parse(body: String): List<Profile> {
+    fun parse(body: String): List<Profile> {
         val root = json.parseToJsonElement(body).jsonObject
         return root["profiles"]?.let { runCatching { it.jsonArray }.getOrNull() }.orEmpty().mapNotNull { el ->
             val o = el as? JsonObject ?: return@mapNotNull null

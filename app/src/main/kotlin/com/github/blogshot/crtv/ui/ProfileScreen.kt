@@ -54,7 +54,38 @@ class ProfileViewModel(private val c: AppContainer) : ViewModel() {
     private val _switching = MutableStateFlow(false)
     val switching: StateFlow<Boolean> = _switching
 
+    /** Website-Cookie, solange die Profilwahl über die Website offen ist. */
+    private val _webSession = MutableStateFlow<String?>(null)
+    val webSession: StateFlow<String?> = _webSession
+
+    /** Mitschrift der Website-Profilwahl, zur Diagnose. */
+    private val _webLog = MutableStateFlow<List<String>>(emptyList())
+    val webLog: StateFlow<List<String>> = _webLog
+
+    val userAgent get() = c.config.userAgent
+
     init { load() }
+
+    fun openWeb() {
+        viewModelScope.launch {
+            val cookie = c.session.webCookie()
+            if (cookie == null) _webLog.value = listOf("Keine Website-Sitzung gespeichert. Bitte ab- und neu anmelden.")
+            _webSession.value = cookie
+        }
+    }
+
+    fun onWebResult(result: WebProfileResult, onDone: () -> Unit) {
+        _webSession.value = null
+        _webLog.value = result.lines.ifEmpty { listOf("Die Seite hat keine Konto- oder Token-Aufrufe gemacht.") }
+        viewModelScope.launch {
+            result.cookie?.let { c.session.adoptWebCookie(it) }
+            val chosen = result.selectedProfileId
+            when {
+                chosen != null -> choose(Profile(chosen, "", null, isPrimary = false, isSelected = false), onDone)
+                result.profiles != null -> _profiles.value = Loadable.Content(result.profiles)
+            }
+        }
+    }
 
     fun load() {
         viewModelScope.launch {
@@ -112,6 +143,13 @@ class ProfileProbeFailed(cause: Throwable, val lines: List<String>) : Exception(
 fun ProfileScreen(vm: ProfileViewModel, onDone: () -> Unit, onLogout: () -> Unit) {
     val state by vm.profiles.collectAsStateWithLifecycle()
     val switching by vm.switching.collectAsStateWithLifecycle()
+    val webSession by vm.webSession.collectAsStateWithLifecycle()
+    val webLog by vm.webLog.collectAsStateWithLifecycle()
+
+    webSession?.let { cookie ->
+        WebProfiles(vm.userAgent, cookie) { vm.onWebResult(it, onDone) }
+        return
+    }
 
     Column(
         Modifier.fillMaxSize().padding(48.dp),
@@ -134,7 +172,8 @@ fun ProfileScreen(vm: ProfileViewModel, onDone: () -> Unit, onLogout: () -> Unit
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Button(onClick = vm::load) { Text("Erneut versuchen") }
+                    Button(onClick = vm::openWeb) { Text("Über die Website wählen") }
+                    OutlinedButton(onClick = vm::load) { Text("Erneut versuchen") }
                     OutlinedButton(onClick = { vm.skip(onDone) }) { Text("Ohne Profilwahl weiter") }
                     OutlinedButton(onClick = onLogout) { Text("Abmelden") }
                 }
@@ -153,6 +192,15 @@ fun ProfileScreen(vm: ProfileViewModel, onDone: () -> Unit, onLogout: () -> Unit
                 }
                 LaunchedEffect(s.data) { if (s.data.isNotEmpty()) runCatching { first.requestFocus() } }
                 if (switching) Text("Wechsle Profil …", color = CrColors.TextMuted)
+            }
+        }
+        if (webLog.isNotEmpty()) {
+            Column(
+                Modifier.fillMaxWidth(0.85f).heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text("Website-Mitschrift (bitte als Screenshot schicken):", style = MaterialTheme.typography.labelMedium)
+                webLog.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = CrColors.TextMuted) }
             }
         }
     }

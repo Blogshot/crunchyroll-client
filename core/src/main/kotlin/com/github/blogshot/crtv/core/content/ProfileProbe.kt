@@ -155,7 +155,7 @@ class ProfileProbe(
         }.joinToString(" ")
     }
 
-    internal companion object {
+    companion object {
         fun claims(token: String): JsonObject? {
             val payload = token.split('.').getOrNull(1) ?: return null
             return runCatching {
@@ -163,7 +163,7 @@ class ProfileProbe(
             }.getOrNull()
         }
 
-        const val MULTIPROFILE = "/accounts/v1/me/multiprofile"
+        internal const val MULTIPROFILE = "/accounts/v1/me/multiprofile"
         private val json = Json { ignoreUnknownKeys = true }
 
         /** Werte nur für Claims, die nichts über das Konto verraten; sonst nur der Name. */
