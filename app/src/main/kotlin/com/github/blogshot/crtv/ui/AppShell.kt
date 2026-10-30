@@ -100,6 +100,11 @@ fun AppShell(container: AppContainer) {
             )
             ListItem(
                 selected = false,
+                onClick = { scope.launch { container.updater.checkIfDue(force = true) } },
+                headlineContent = { Text("Nach Updates suchen") },
+            )
+            ListItem(
+                selected = false,
                 onClick = { scope.launch { container.session.logout() } },
                 headlineContent = { Text("Abmelden") },
             )

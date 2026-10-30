@@ -29,6 +29,7 @@ fun UpdateBanner(updater: Updater, modifier: Modifier = Modifier) {
         is UpdateState.Available -> "Update verfügbar (${s.versionName})"
         is UpdateState.Downloading -> "Lade Update … ${s.percent} %"
         is UpdateState.Failed -> "Update fehlgeschlagen: ${s.message}"
+        is UpdateState.UpToDate -> "Aktuell (${s.versionName})"
     }
     Row(
         modifier.padding(16.dp).glass(RoundedCornerShape(18.dp)).padding(horizontal = 20.dp, vertical = 12.dp),
@@ -36,7 +37,9 @@ fun UpdateBanner(updater: Updater, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text, style = MaterialTheme.typography.titleSmall, color = CrColors.Text)
-        if (state !is UpdateState.Downloading) {
+        if (state is UpdateState.UpToDate) {
+            GlassOutlinedButton(onClick = updater::dismiss) { Text("OK") }
+        } else if (state !is UpdateState.Downloading) {
             GlassButton(onClick = { scope.launch { updater.install() } }) {
                 Text(if (state is UpdateState.Failed) "Erneut versuchen" else "Installieren")
             }

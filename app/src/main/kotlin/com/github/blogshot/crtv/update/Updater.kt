@@ -23,6 +23,8 @@ sealed interface UpdateState {
     data class Available(val versionCode: Int, val versionName: String) : UpdateState
     data class Downloading(val percent: Int) : UpdateState
     data class Failed(val message: String) : UpdateState
+    /** Nur nach manueller Prüfung, damit man sieht, dass geprüft wurde. */
+    data class UpToDate(val versionName: String) : UpdateState
 }
 
 /**
@@ -40,10 +42,10 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
     @Serializable
     private data class Version(val versionCode: Int, val versionName: String = "")
 
-    /** Höchstens alle 30 Minuten; Fehler bleiben still, ein Update-Check darf die App nie stören. */
+    /** Höchstens alle 2 Minuten; automatische Prüfungen bleiben bei Fehlern still. */
     suspend fun checkIfDue(force: Boolean = false) {
         val now = System.currentTimeMillis()
-        if (!force && now - lastCheckMs < 30 * 60_000) return
+        if (!force && now - lastCheckMs < 2 * 60_000) return
         if (_state.value is UpdateState.Downloading) return
         lastCheckMs = now
         val remote = runCatching {
@@ -53,9 +55,14 @@ class Updater(private val context: Context, private val http: OkHttpClient) {
                     json.decodeFromString<Version>(r.body?.string().orEmpty())
                 }
             }
-        }.getOrNull() ?: return
-        if (remote.versionCode > BuildConfig.VERSION_CODE) {
-            _state.value = UpdateState.Available(remote.versionCode, remote.versionName)
+        }.getOrElse {
+            if (force) _state.value = UpdateState.Failed("Prüfung fehlgeschlagen: ${it.message}")
+            return
+        }
+        _state.value = when {
+            remote.versionCode > BuildConfig.VERSION_CODE -> UpdateState.Available(remote.versionCode, remote.versionName)
+            force -> UpdateState.UpToDate(BuildConfig.VERSION_NAME)
+            else -> _state.value
         }
     }
 
