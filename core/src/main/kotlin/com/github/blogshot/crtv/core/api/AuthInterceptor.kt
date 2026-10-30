@@ -29,7 +29,11 @@ class TokenAuthenticator(private val session: SessionManager, private val userAg
     }
 }
 
+// Origin/Referer wie bei Aufrufen von der Website, deren Client-Kennung die App nutzt.
 private fun Request.withAuth(token: String, userAgent: String) = newBuilder()
     .header("Authorization", "Bearer $token")
     .header("User-Agent", userAgent)
+    .header("Accept", "application/json")
+    .header("Origin", "https://www.crunchyroll.com")
+    .header("Referer", "https://www.crunchyroll.com/")
     .build()

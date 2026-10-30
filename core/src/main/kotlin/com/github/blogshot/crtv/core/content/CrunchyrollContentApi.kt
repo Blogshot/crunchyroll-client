@@ -18,7 +18,23 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 
-class HttpStatusException(val code: Int, url: String) : IOException("HTTP $code für $url")
+class HttpStatusException(val code: Int, url: String, detail: String = "") :
+    IOException("HTTP $code für $url" + if (detail.isNotEmpty()) " · $detail" else "")
+
+/** Kurzbeschreibung einer Fehlantwort: Crunchyroll-Fehlercodes oder ob Cloudflare blockt. Keine Inhalte. */
+fun describeFailure(response: okhttp3.Response): String {
+    val body = runCatching { response.peekBody(4096).string() }.getOrDefault("")
+    val obj = runCatching { Json.parseToJsonElement(body) as? JsonObject }.getOrNull()
+    val fields = listOf("error", "code", "message").mapNotNull { k ->
+        obj?.get(k)?.let { runCatching { it.jsonPrimitive.contentOrNull }.getOrNull() }?.let { "$k=$it" }
+    }
+    val cf = listOfNotNull(
+        "cloudflare".takeIf { response.header("server")?.contains("cloudflare", true) == true && obj == null },
+        response.header("cf-mitigated")?.let { "cf-mitigated=$it" },
+        "html".takeIf { body.trimStart().startsWith("<") },
+    )
+    return (fields + cf).joinToString(" ")
+}
 
 /**
  * Katalog über `/content/v2`. Die Pfade sind aus der Web-App abgeleitet und werden in M0 mit echten Antworten
@@ -141,7 +157,7 @@ class CrunchyrollContentApi(
                 .apply(query)
                 .build()
             http.newCall(Request.Builder().url(url).get().build()).execute().use { response ->
-                if (!response.isSuccessful) throw HttpStatusException(response.code, url.encodedPath)
+                if (!response.isSuccessful) throw HttpStatusException(response.code, url.encodedPath, describeFailure(response))
                 json.parseToJsonElement(response.body?.string().orEmpty()).jsonObject
             }
         }

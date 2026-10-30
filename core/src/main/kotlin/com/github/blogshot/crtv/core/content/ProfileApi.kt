@@ -34,7 +34,7 @@ class CrunchyrollProfileApi(
     override suspend fun profiles(): List<Profile> = withContext(Dispatchers.IO) {
         val url = "$baseUrl/accounts/v1/me/multiprofile"
         val body = http.newCall(Request.Builder().url(url).get().build()).execute().use { response ->
-            if (!response.isSuccessful) throw HttpStatusException(response.code, "/accounts/v1/me/multiprofile")
+            if (!response.isSuccessful) throw HttpStatusException(response.code, "/accounts/v1/me/multiprofile", describeFailure(response))
             response.body?.string().orEmpty()
         }
         parse(body)
