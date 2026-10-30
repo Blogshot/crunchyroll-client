@@ -61,7 +61,7 @@ class CrunchyrollAuthApi(
     override suspend fun exchangeWebSession(etpRt: String): LoginResult {
         val form = FormBody.Builder()
             .add("grant_type", "etp_rt_cookie")
-            .add("scope", "offline_access")
+            // Wie die Website: ohne scope. Mit offline_access lehnte /accounts/v1/me/multiprofile das Token ab (invalid_auth_token).
             .addDevice()
             .build()
         return try {
@@ -99,7 +99,7 @@ class CrunchyrollAuthApi(
         val form = FormBody.Builder()
             .add("grant_type", grant)
             .apply { if (!viaCookie) add("refresh_token", refreshToken) }
-            .add("scope", "offline_access")
+            .apply { if (!viaCookie) add("scope", "offline_access") }
             .addDevice()
             // Die Website schickt beim Cookie-Grant keine Profil-ID; nur beim Wechsel mitsenden.
             .apply { if (profileId != null && (!viaCookie || switchProfile)) add("profile_id", profileId) }

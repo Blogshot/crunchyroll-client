@@ -32,6 +32,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.blogshot.crtv.AppContainer
+import com.github.blogshot.crtv.core.content.HttpStatusException
 import com.github.blogshot.crtv.core.content.Loadable
 import com.github.blogshot.crtv.core.content.Profile
 import com.github.blogshot.crtv.ui.theme.CrColors
@@ -54,7 +55,16 @@ class ProfileViewModel(private val c: AppContainer) : ViewModel() {
     fun load() {
         viewModelScope.launch {
             _profiles.value = Loadable.Loading
-            _profiles.value = runCatching { c.profiles.profiles() }.fold(
+            _profiles.value = runCatching {
+                try {
+                    c.profiles.profiles()
+                } catch (e: HttpStatusException) {
+                    // Token aus einer älteren Anmeldung (mit anderem scope): einmal frisch holen und wiederholen.
+                    if (e.code != 401 && e.code != 403) throw e
+                    c.session.forceRefresh()
+                    c.profiles.profiles()
+                }
+            }.fold(
                 onSuccess = { list ->
                     // Nur ein Profil: nichts zu wählen, direkt weiter.
                     if (list.size <= 1) c.session.confirmProfile()

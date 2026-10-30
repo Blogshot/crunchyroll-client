@@ -60,6 +60,14 @@ class SessionManager(
         refreshLocked(current, current.profileId).accessToken
     }
 
+    /** Erzwingt ein neues Access-Token, z. B. wenn ein Endpunkt das aktuelle als ungültig ablehnt. */
+    suspend fun forceRefresh() = mutex.withLock {
+        ensureLoaded()
+        val current = tokens ?: throw SessionExpiredException()
+        refreshLocked(current, current.profileId)
+        Unit
+    }
+
     /** Proaktive Erneuerung, z. B. beim Zurückkehren aus dem Standby. Wirft nie. */
     suspend fun refreshIfDue(withinMs: Long = refreshSkewMs * 2) {
         runCatching {
