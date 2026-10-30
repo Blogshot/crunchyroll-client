@@ -59,8 +59,13 @@ class ProfileViewModel(private val c: AppContainer) : ViewModel() {
     val webSession: StateFlow<String?> = _webSession
 
     /** Mitschrift der Website-Profilwahl, zur Diagnose. */
-    private val _webLog = MutableStateFlow<List<String>>(emptyList())
+    // Über das ViewModel hinaus behalten: nach erfolgreicher Wahl geht es erst zur Startseite.
+    private val _webLog = lastWebLog
     val webLog: StateFlow<List<String>> = _webLog
+
+    private companion object {
+        val lastWebLog = MutableStateFlow<List<String>>(emptyList())
+    }
 
     val userAgent get() = c.config.userAgent
 
