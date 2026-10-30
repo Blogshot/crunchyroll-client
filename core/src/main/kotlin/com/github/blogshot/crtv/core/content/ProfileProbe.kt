@@ -64,11 +64,10 @@ class ProfileProbe(
                     .build()
                 http.newCall(request).execute().use { r ->
                     val body = r.body?.string().orEmpty()
-                    if (r.isSuccessful && path == MULTIPROFILE && found == null) {
-                        found = runCatching { parser.parse(body) }.getOrNull()?.takeIf { it.isNotEmpty() }
-                    }
+                    val parsed = if (r.isSuccessful) runCatching { parser.parse(body) }.getOrNull().orEmpty() else emptyList()
+                    if (found == null && parsed.isNotEmpty()) found = parsed
                     "HTTP ${r.code}" + errorFields(body).let { if (it.isEmpty()) "" else " · $it" } +
-                        if (r.isSuccessful && path == MULTIPROFILE) " · ${found?.size ?: 0} Profile" else ""
+                        if (r.isSuccessful) " · Felder: ${fieldNames(body)} · ${parsed.size} Profile" else ""
                 }
             }.getOrElse { "${it::class.simpleName}: ${it.message}" }
             lines += "$label: $result"
@@ -77,6 +76,12 @@ class ProfileProbe(
         attempt("/accounts/v1/me", accessToken, path = "/accounts/v1/me")
         attempt("/accounts/v1/me/profile", accessToken, path = "/accounts/v1/me/profile")
         attempt("multiprofile", accessToken)
+        // Konto-ID im Pfad statt `me`; nur im Request, nicht im Bericht.
+        claims(accessToken)?.get("etp_user_id")?.let { (it as? JsonPrimitive)?.contentOrNull }?.let { id ->
+            attempt("/accounts/v1/<konto>/multiprofile", accessToken, path = "/accounts/v1/$id/multiprofile")
+            attempt("/accounts/v1/<konto>/profiles", accessToken, path = "/accounts/v1/$id/profiles")
+        }
+        attempt("/accounts/v1/me/profiles", accessToken, path = "/accounts/v1/me/profiles")
         attempt("multiprofile ohne Origin", accessToken, browserHeaders = false)
         if (cookie != null) attempt("multiprofile + Cookie", accessToken, withCookie = true)
 
@@ -89,7 +94,7 @@ class ProfileProbe(
                     lines += "Token ${variant.label}: ${fetched.status}"
                     continue
                 }
-                lines += "Token ${variant.label}: ${fetched.status} · " + describeClaims(fetched.accessToken)
+                lines += "Token ${variant.label}: ${fetched.status} · " + describeClaims(fetched.accessToken, short = true)
                 attempt("multiprofile mit Token ${variant.label}", fetched.accessToken)
                 if (found == null) attempt("multiprofile mit Token ${variant.label} + Cookie", fetched.accessToken, withCookie = true)
             }
@@ -140,6 +145,9 @@ class ProfileProbe(
         }.getOrElse { Fetched("${it::class.simpleName}: ${it.message}", null, null) }
     }
 
+    private fun fieldNames(body: String): String =
+        runCatching { (json.parseToJsonElement(body) as JsonObject).keys.take(12).joinToString(" ") }.getOrDefault("?")
+
     private fun errorFields(body: String): String {
         val obj = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull() ?: return ""
         return listOf("error", "code", "message").mapNotNull { k ->
@@ -148,19 +156,29 @@ class ProfileProbe(
     }
 
     internal companion object {
+        fun claims(token: String): JsonObject? {
+            val payload = token.split('.').getOrNull(1) ?: return null
+            return runCatching {
+                json.parseToJsonElement(String(Base64.getUrlDecoder().decode(payload.trimEnd('=')))).jsonObject
+            }.getOrNull()
+        }
+
         const val MULTIPROFILE = "/accounts/v1/me/multiprofile"
         private val json = Json { ignoreUnknownKeys = true }
 
         /** Werte nur für Claims, die nichts über das Konto verraten; sonst nur der Name. */
-        private val SHOWN_VALUES = setOf("scope", "scp", "aud", "iss", "device_type", "client_id", "type", "grant_type", "benefits")
+        private val SHOWN_VALUES = setOf(
+            "scope", "scp", "scopes", "oauth_scopes", "aud", "iss", "device_type", "client_id", "client_tag",
+            "type", "grant_type", "profile_type", "status", "tnt", "maturity", "extended_maturity",
+        )
+
+        /** Nur die Berechtigungen, für die Kurzfassung bei frisch geholten Tokens. */
+        private val SHORT_KEYS = setOf("scope", "scopes", "oauth_scopes", "profile_type", "client_tag")
 
         /** Claims eines JWT ohne Signaturprüfung, nur zur Anzeige. */
-        fun describeClaims(token: String): String {
-            val payload = token.split('.').getOrNull(1) ?: return "kein JWT"
-            val claims = runCatching {
-                json.parseToJsonElement(String(Base64.getUrlDecoder().decode(payload.trimEnd('=')))).jsonObject
-            }.getOrNull() ?: return "JWT nicht lesbar"
-            return claims.entries.joinToString(", ") { (k, v) ->
+        fun describeClaims(token: String, short: Boolean = false): String {
+            val claims = claims(token) ?: return "JWT nicht lesbar"
+            return claims.entries.filter { !short || it.key in SHORT_KEYS }.joinToString(", ") { (k, v) ->
                 when {
                     k == "exp" -> (v as? JsonPrimitive)?.longOrNull
                         ?.let { "exp=in ${(it - System.currentTimeMillis() / 1000) / 60} min" } ?: k
