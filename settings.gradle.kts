@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "crunchyroll-client"
+if (coreOnly) rootProject.buildFileName = "core-only.gradle.kts"
 
 include(":core")
 // -PcoreOnly baut nur das reine Kotlin-Modul (ohne Android SDK), z. B. für schnelle Tests.

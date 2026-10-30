@@ -10,7 +10,12 @@ class FakeAuthApi(private val clock: () -> Long) : AuthApi {
     private val validRefreshTokens = mutableSetOf("r0")
     private var counter = 0
 
-    override suspend fun refresh(refreshToken: String, profileId: String?): TokenResult {
+    var lastSwitch = false
+
+    override suspend fun exchangeWebSession(etpRt: String) = error("nicht benutzt")
+
+    override suspend fun refresh(refreshToken: String, profileId: String?, switchProfile: Boolean, viaCookie: Boolean): TokenResult {
+        lastSwitch = switchProfile
         refreshCalls.incrementAndGet()
         delay(50)
         nextResult?.let { return it }
@@ -21,6 +26,7 @@ class FakeAuthApi(private val clock: () -> Long) : AuthApi {
         return TokenResult.Success(AuthTokens("a$counter", next, clock() + 300_000, "acc", profileId))
     }
 
+    override suspend fun passwordLogin(username: String, password: String) = error("nicht benutzt")
     override suspend fun requestDeviceCode() = error("nicht benutzt")
     override suspend fun pollDeviceCode(deviceCode: String) = error("nicht benutzt")
 }

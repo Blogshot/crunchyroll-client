@@ -4,12 +4,17 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.github.blogshot.crtv.core.api.ClientCredentials
+import com.github.blogshot.crtv.core.api.ClientCredentialsStore
 import com.github.blogshot.crtv.core.auth.AuthTokens
 import com.github.blogshot.crtv.core.auth.TokenStore
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.security.KeyStore
 import java.util.UUID
@@ -20,6 +25,7 @@ import javax.crypto.spec.GCMParameterSpec
 
 private val Context.sessionStore by preferencesDataStore(name = "session")
 private val TOKENS = stringPreferencesKey("tokens")
+private val CLIENT = stringPreferencesKey("client")
 private val DEVICE_ID = stringPreferencesKey("device_id")
 
 /** Feste Geräte-ID; Crunchyroll ordnet Sessions und Stream-Limits danach zu. */
@@ -31,30 +37,62 @@ suspend fun Context.deviceId(): String {
 }
 
 /** Token als JSON, verschlüsselt mit einem AES-Schlüssel aus dem Android Keystore. */
-class EncryptedTokenStore(private val context: Context) : TokenStore {
+class EncryptedTokenStore(context: Context) : TokenStore {
+    private val value = EncryptedValue(context, TOKENS, AuthTokens.serializer())
+    override suspend fun load() = value.load()
+    override suspend fun save(tokens: AuthTokens) = value.save(tokens)
+    override suspend fun clear() = value.clear()
+}
 
-    override suspend fun load(): AuthTokens? {
-        val blob = context.sessionStore.data.first()[TOKENS] ?: return null
-        // Schlüssel weg (z. B. nach Backup-Restore) oder Daten kaputt: als abgemeldet behandeln statt abzustürzen.
-        return runCatching { json.decodeFromString<AuthTokens>(decrypt(blob)) }.getOrNull()
+/** Client-Kennung (von der Website ermittelt oder von Hand eingegeben), ebenfalls verschlüsselt. */
+class EncryptedClientCredentialsStore(context: Context) : ClientCredentialsStore {
+    @Serializable
+    private data class Stored(val clientId: String, val clientSecret: String)
+
+    private val value = EncryptedValue(context, CLIENT, Stored.serializer())
+    override suspend fun load() = value.load()?.let { ClientCredentials(it.clientId, it.clientSecret) }
+    override suspend fun save(credentials: ClientCredentials) =
+        value.save(Stored(credentials.clientId, credentials.clientSecret))
+}
+
+private class EncryptedValue<T>(
+    private val context: Context,
+    private val key: Preferences.Key<String>,
+    private val serializer: KSerializer<T>,
+) {
+    suspend fun load(): T? {
+        val blob = context.sessionStore.data.first()[key] ?: return null
+        // Schlüssel weg (z. B. nach Backup-Restore) oder Daten kaputt: als nicht vorhanden behandeln statt abzustürzen.
+        return runCatching { json.decodeFromString(serializer, Crypto.decrypt(blob)) }.getOrNull()
     }
 
-    override suspend fun save(tokens: AuthTokens) {
-        val blob = encrypt(json.encodeToString(AuthTokens.serializer(), tokens))
-        context.sessionStore.edit { it[TOKENS] = blob }
+    suspend fun save(value: T) {
+        val blob = Crypto.encrypt(json.encodeToString(serializer, value))
+        context.sessionStore.edit { it[key] = blob }
     }
 
-    override suspend fun clear() {
-        context.sessionStore.edit { it.remove(TOKENS) }
+    suspend fun clear() {
+        context.sessionStore.edit { it.remove(key) }
     }
 
-    private fun encrypt(plain: String): String {
+    private companion object {
+        val json = Json { ignoreUnknownKeys = true }
+    }
+}
+
+private object Crypto {
+    private const val KEYSTORE = "AndroidKeyStore"
+    private const val KEY_ALIAS = "crtv-session"
+    private const val TRANSFORMATION = "AES/GCM/NoPadding"
+    private const val IV_SIZE = 12
+
+    fun encrypt(plain: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION).apply { init(Cipher.ENCRYPT_MODE, key()) }
         val out = cipher.iv + cipher.doFinal(plain.toByteArray())
         return Base64.encodeToString(out, Base64.NO_WRAP)
     }
 
-    private fun decrypt(blob: String): String {
+    fun decrypt(blob: String): String {
         val bytes = Base64.decode(blob, Base64.NO_WRAP)
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes, 0, IV_SIZE))
@@ -73,13 +111,5 @@ class EncryptedTokenStore(private val context: Context) : TokenStore {
                     .build(),
             )
         }.generateKey()
-    }
-
-    private companion object {
-        const val KEYSTORE = "AndroidKeyStore"
-        const val KEY_ALIAS = "crtv-session"
-        const val TRANSFORMATION = "AES/GCM/NoPadding"
-        const val IV_SIZE = 12
-        val json = Json { ignoreUnknownKeys = true }
     }
 }

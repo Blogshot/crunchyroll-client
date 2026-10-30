@@ -85,10 +85,23 @@ class SessionManagerTest {
     fun `Profilwechsel behaelt das Profil ueber den naechsten Refresh`() = runTest {
         val (sm, store) = session(expiresInMs = 300_000)
         sm.switchProfile("p2")
+        assertTrue(api.lastSwitch)
         assertEquals("p2", store.tokens?.profileId)
+        assertEquals(true, store.tokens?.profileConfirmed)
         now += 600_000
         sm.accessToken()
+        assertTrue(!api.lastSwitch)
         assertEquals("p2", store.tokens?.profileId)
+        assertEquals(true, store.tokens?.profileConfirmed)
+    }
+
+    @Test
+    fun `nach dem Login ist das Profil noch nicht gewaehlt`() = runTest {
+        val sm = SessionManager(api, InMemoryTokenStore(), clock = { now })
+        sm.onLoggedIn(AuthTokens("a", "r", now + 300_000, "acc", "p1"))
+        assertEquals(SessionState.LoggedIn("acc", "p1", false), sm.state.value)
+        sm.confirmProfile()
+        assertEquals(SessionState.LoggedIn("acc", "p1", true), sm.state.value)
     }
 
     @Test
