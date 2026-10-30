@@ -26,9 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.tv.material3.Button
+import com.github.blogshot.crtv.ui.theme.GlassButton as Button
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
@@ -36,7 +35,7 @@ import com.github.blogshot.crtv.AppContainer
 import com.github.blogshot.crtv.core.content.Loadable
 import com.github.blogshot.crtv.core.content.Profile
 import com.github.blogshot.crtv.ui.theme.CrColors
-import com.github.blogshot.crtv.ui.theme.glass
+import com.github.blogshot.crtv.ui.theme.GlassClickable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -129,21 +128,18 @@ private fun ProfileTile(profile: Profile, enabled: Boolean, onClick: () -> Unit,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Surface(
+        GlassClickable(
             onClick = onClick,
             enabled = enabled,
-            shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(CircleShape),
-            colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
-                containerColor = androidx.compose.ui.graphics.Color.Transparent,
-                focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-            ),
+            shape = CircleShape,
+            focusScale = 1.1f,
             modifier = modifier.size(150.dp).onFocusChanged { focused = it.isFocused },
-        ) {
+        ) { _ ->
             AsyncImage(
                 model = profile.avatarUrl,
                 contentDescription = profile.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().glass(CircleShape, focused = focused, borderWidth = 2.dp),
+                modifier = Modifier.fillMaxSize(),
             )
         }
         Text(

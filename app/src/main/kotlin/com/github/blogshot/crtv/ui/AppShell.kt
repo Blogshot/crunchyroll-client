@@ -22,7 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.tv.material3.ListItem
+import com.github.blogshot.crtv.ui.theme.GlassNavItem as ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.blogshot.crtv.AppContainer

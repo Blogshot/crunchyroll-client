@@ -21,16 +21,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Button
-import androidx.tv.material3.Card
-import androidx.tv.material3.CardDefaults
+import com.github.blogshot.crtv.ui.theme.GlassButton as Button
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.blogshot.crtv.core.content.EpisodeCard
 import com.github.blogshot.crtv.core.content.Loadable
 import com.github.blogshot.crtv.core.content.MediaCard
-import com.github.blogshot.crtv.ui.theme.CrColors
+import com.github.blogshot.crtv.ui.theme.GlassClickable
 import com.github.blogshot.crtv.ui.theme.LocalBackdrop
 
 /**
@@ -87,13 +85,12 @@ fun ErrorRow(onRetry: () -> Unit) {
 fun PosterCard(item: MediaCard, onClick: () -> Unit, width: Dp = 160.dp) {
     val backdrop = LocalBackdrop.current
     Column(Modifier.width(width), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Card(
+        GlassClickable(
             onClick = onClick,
-            colors = CardDefaults.colors(containerColor = CrColors.GlassFill),
             // Fokussierte Serie färbt den weichgezeichneten Hintergrund der ganzen App.
             modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f)
                 .onFocusChanged { if (it.isFocused) backdrop.value = item.posterWide ?: item.posterTall },
-        ) {
+        ) { _ ->
             AsyncImage(
                 model = item.posterTall,
                 contentDescription = item.title,
@@ -109,12 +106,11 @@ fun PosterCard(item: MediaCard, onClick: () -> Unit, width: Dp = 160.dp) {
 fun EpisodeTile(item: EpisodeCard, onClick: () -> Unit, showSeries: Boolean = true) {
     val backdrop = LocalBackdrop.current
     Column(Modifier.width(280.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Card(
+        GlassClickable(
             onClick = onClick,
-            colors = CardDefaults.colors(containerColor = CrColors.GlassFill),
             modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
                 .onFocusChanged { if (it.isFocused) backdrop.value = item.thumbnail },
-        ) {
+        ) { _ ->
             AsyncImage(
                 model = item.thumbnail,
                 contentDescription = item.title,

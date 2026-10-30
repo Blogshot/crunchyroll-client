@@ -21,15 +21,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.tv.material3.Button
+import com.github.blogshot.crtv.ui.theme.GlassButton as Button
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
+import com.github.blogshot.crtv.ui.theme.GlassOutlinedButton as OutlinedButton
 import androidx.tv.material3.Text
 import com.github.blogshot.crtv.AppContainer
 import com.github.blogshot.crtv.CrApp
@@ -111,7 +112,13 @@ private fun LoginScreen(vm: LoginViewModel, userAgent: String) {
 private fun StartPanel(vm: LoginViewModel, s: LoginUiState.Start) {
     Text("Melde dich auf der offiziellen Crunchyroll-Seite an. Die App sieht dein Passwort nicht.", style = MaterialTheme.typography.titleMedium)
     s.message?.let { Text(it, color = CrColors.Accent) }
-    Button(onClick = vm::openWebLogin, enabled = !s.busy) {
+    val primary = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { primary.requestFocus() } }
+    Button(
+        onClick = vm::openWebLogin,
+        enabled = !s.busy,
+        modifier = Modifier.focusRequester(primary),
+    ) {
         Text(if (s.busy) "Melde an …" else "Bei Crunchyroll anmelden")
     }
     OutlinedButton(onClick = vm::openPasswordForm, enabled = !s.busy) { Text("E-Mail und Passwort (eigene Client-ID)") }

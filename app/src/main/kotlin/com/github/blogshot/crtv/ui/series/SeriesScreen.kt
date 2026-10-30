@@ -21,7 +21,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.FilterChip
+import com.github.blogshot.crtv.ui.theme.GlassChip as FilterChip
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.blogshot.crtv.AppContainer
