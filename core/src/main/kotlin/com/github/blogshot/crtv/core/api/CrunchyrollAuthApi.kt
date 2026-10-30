@@ -67,13 +67,13 @@ class CrunchyrollAuthApi(
         return try {
             val r = post("/auth/v1/token", form, cookie = etpRt)
             when {
-                r.code in 200..299 -> LoginResult.Success(r.tokens(fallbackCookie = etpRt))
+                r.code in 200..299 -> LoginResult.Success(r.tokens(fallbackCookie = etpRt, preferCookie = true))
                 errorCode(r.body) == "invalid_client" -> {
                     credentials.invalidate()
                     LoginResult.MissingClientId
                 }
-                r.code in 400..401 -> LoginResult.WrongCredentials
-                else -> LoginResult.Failed(IOException("HTTP ${r.code}"))
+                r.code in 400..401 -> LoginResult.Failed(IOException(r.describe()))
+                else -> LoginResult.Failed(IOException(r.describe()))
             }
         } catch (e: MissingClientCredentialsException) {
             LoginResult.MissingClientId
@@ -101,16 +101,19 @@ class CrunchyrollAuthApi(
             .apply { if (!viaCookie) add("refresh_token", refreshToken) }
             .add("scope", "offline_access")
             .addDevice()
-            .apply { if (profileId != null) add("profile_id", profileId) }
+            // Die Website schickt beim Cookie-Grant keine Profil-ID; nur beim Wechsel mitsenden.
+            .apply { if (profileId != null && (!viaCookie || switchProfile)) add("profile_id", profileId) }
             .build()
         return try {
             val r = post("/auth/v1/token", form, cookie = refreshToken.takeIf { viaCookie })
             val code = r.code
             val body = r.body
             when {
-                code in 200..299 -> TokenResult.Success(r.tokens(fallbackCookie = refreshToken.takeIf { viaCookie }))
+                code in 200..299 -> TokenResult.Success(
+                    r.tokens(fallbackCookie = refreshToken.takeIf { viaCookie }, preferCookie = viaCookie),
+                )
                 errorCode(body) == "invalid_grant" -> TokenResult.InvalidGrant
-                else -> TokenResult.Transient(IOException("HTTP $code"))
+                else -> TokenResult.Transient(IOException(r.describe()))
             }
         } catch (e: IOException) {
             TokenResult.Transient(e)
@@ -172,14 +175,23 @@ class CrunchyrollAuthApi(
         }
     }
 
-    /** Ohne `refresh_token` in der Antwort (Website-Login) dient das `etp_rt`-Cookie als Refresh-Token. */
-    private fun Reply.tokens(fallbackCookie: String? = null): AuthTokens {
+    /** Status plus Crunchyrolls Fehlerfelder (ohne Token-Werte), für Fehlermeldungen in der UI. */
+    private fun Reply.describe(): String {
+        val err = runCatching { json.decodeFromString<ErrorResponse>(body) }.getOrNull()
+        return listOfNotNull("HTTP $code", err?.error, err?.code).joinToString(" · ")
+    }
+
+    /**
+     * Website-Login: Das `etp_rt`-Cookie ist das eigentliche Refresh-Token (so erneuert auch die Website).
+     * [preferCookie] erzwingt den Cookie-Weg, auch wenn die Antwort zusätzlich ein `refresh_token` enthält.
+     */
+    private fun Reply.tokens(fallbackCookie: String? = null, preferCookie: Boolean = false): AuthTokens {
         val t = json.decodeFromString<TokenResponse>(body)
         val cookie = etpRt ?: fallbackCookie
-        val viaCookie = t.refreshToken == null && cookie != null
+        val viaCookie = cookie != null && (preferCookie || t.refreshToken == null)
         return AuthTokens(
             accessToken = t.accessToken,
-            refreshToken = t.refreshToken ?: cookie
+            refreshToken = (if (viaCookie) cookie else t.refreshToken) ?: cookie
                 ?: throw kotlinx.serialization.SerializationException("Antwort ohne refresh_token"),
             expiresAtMs = clock() + t.expiresIn * 1000,
             accountId = t.accountId,

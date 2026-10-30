@@ -108,6 +108,22 @@ class HttpAuthTest {
     }
 
     @Test
+    fun `Website-Sitzung bleibt beim Cookie, auch wenn ein refresh_token mitkommt`() = runTest {
+        val api = CrunchyrollAuthApi(OkHttpClient(), config(), creds) { now }
+        server.enqueue(MockResponse().setBody(tokenJson(1)))
+        val login = api.exchangeWebSession("cookie0") as LoginResult.Success
+        assertEquals("cookie0", login.tokens.refreshToken)
+        assertTrue(login.tokens.refreshViaCookie)
+        server.takeRequest()
+
+        server.enqueue(MockResponse().setResponseCode(400).setBody("""{"error":"invalid_request","code":"auth.x"}"""))
+        val failed = api.refresh("cookie0", "p1", viaCookie = true) as TokenResult.Transient
+        assertEquals("HTTP 400 · invalid_request · auth.x", failed.cause?.message)
+        // Beim Cookie-Grant ohne Wechsel keine Profil-ID (wie die Website).
+        assertTrue(!server.takeRequest().body.readUtf8().contains("profile_id"))
+    }
+
+    @Test
     fun `401 erneuert einmal und wiederholt den Request`() {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {
