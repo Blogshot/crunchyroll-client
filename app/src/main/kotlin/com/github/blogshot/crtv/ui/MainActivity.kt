@@ -122,6 +122,11 @@ private fun StartPanel(vm: LoginViewModel, s: LoginUiState.Start) {
         Text(if (s.busy) "Melde an …" else "Bei Crunchyroll anmelden")
     }
     OutlinedButton(onClick = vm::openPasswordForm, enabled = !s.busy) { Text("E-Mail und Passwort (eigene Client-ID)") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val version = androidx.compose.runtime.remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
+    }
+    Text("Version $version", style = MaterialTheme.typography.labelSmall, color = CrColors.TextMuted)
 }
 
 @Composable

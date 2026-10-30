@@ -15,7 +15,8 @@ android {
         // 35 statt 36: ab 36 kommt KEYCODE_BACK bei Predictive Back nicht mehr als Key-Event (wie beim hanime-Client).
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        // Commit im Versionsnamen, damit sichtbar ist, welcher Stand installiert ist.
+        versionName = "0.1.0-" + (System.getenv("GITHUB_SHA")?.take(7) ?: "lokal")
     }
 
     // Fester Debug-Schlüssel (nicht geheim): CI- und lokale Builds lassen sich übereinander installieren.
