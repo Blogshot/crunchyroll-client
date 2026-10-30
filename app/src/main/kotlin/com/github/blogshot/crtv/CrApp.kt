@@ -17,6 +17,7 @@ class CrApp : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 container.scope.launch { container.session.refreshIfDue() }
+                container.scope.launch { container.updater.checkIfDue() }
             }
         })
     }

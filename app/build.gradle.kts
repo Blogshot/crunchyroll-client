@@ -14,9 +14,13 @@ android {
         minSdk = 28
         // 35 statt 36: ab 36 kommt KEYCODE_BACK bei Predictive Back nicht mehr als Key-Event (wie beim hanime-Client).
         targetSdk = 35
-        versionCode = 1
+        // CI-Laufnummer als versionCode: Die Update-Prüfung vergleicht damit.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         // Commit im Versionsnamen, damit sichtbar ist, welcher Stand installiert ist.
         versionName = "0.1.0-" + (System.getenv("GITHUB_SHA")?.take(7) ?: "lokal")
+        // Release-Tag, aus dem die App Updates holt (main: android-latest, sonst android-dev).
+        buildConfigField("String", "UPDATE_CHANNEL", "\"${System.getenv("UPDATE_CHANNEL") ?: "android-latest"}\"")
+        buildConfigField("String", "UPDATE_REPO", "\"Blogshot/crunchyroll-client\"")
     }
 
     // Fester Debug-Schlüssel (nicht geheim): CI- und lokale Builds lassen sich übereinander installieren.
@@ -36,6 +40,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {

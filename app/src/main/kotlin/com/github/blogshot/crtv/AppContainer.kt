@@ -18,6 +18,7 @@ import com.github.blogshot.crtv.core.content.ProfileApi
 import com.github.blogshot.crtv.data.EncryptedClientCredentialsStore
 import com.github.blogshot.crtv.data.EncryptedTokenStore
 import com.github.blogshot.crtv.data.deviceId
+import com.github.blogshot.crtv.update.Updater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,6 +51,8 @@ class AppContainer(context: Context) {
     val authApi = CrunchyrollAuthApi(baseHttp, config, clientCredentials)
 
     val session = SessionManager(api = authApi, store = EncryptedTokenStore(context))
+
+    val updater = Updater(context.applicationContext, baseHttp)
 
     /** Für alle API-Aufrufe außer den Token-Endpunkten. */
     val apiHttp: OkHttpClient = baseHttp.newBuilder()

@@ -35,6 +35,7 @@ import androidx.tv.material3.Text
 import com.github.blogshot.crtv.AppContainer
 import com.github.blogshot.crtv.CrApp
 import com.github.blogshot.crtv.core.auth.SessionState
+import com.github.blogshot.crtv.update.UpdateBanner
 import com.github.blogshot.crtv.ui.theme.CrColors
 import com.github.blogshot.crtv.ui.theme.CrTheme
 import com.github.blogshot.crtv.ui.theme.GlassBackground
@@ -48,7 +49,10 @@ class MainActivity : ComponentActivity() {
         val container = (application as CrApp).container
         setContent {
             CrTheme {
-                GlassBackground { App(container) }
+                GlassBackground {
+                    App(container)
+                    UpdateBanner(container.updater, Modifier.align(Alignment.TopEnd))
+                }
             }
         }
     }

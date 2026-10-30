@@ -1,12 +1,13 @@
 name: Android
 
-# Testet das core-Modul, baut das Debug-APK und veröffentlicht es als Vorab-Release „android-latest“
-# (fester Download-Link, wird bei jedem Lauf auf main ersetzt).
+# Testet das core-Modul, baut das Debug-APK und veröffentlicht es als Vorab-Release:
+#   main      → „android-latest“ (stabiler Kanal)
+#   claude/** → „android-dev“    (Entwicklungsstand, z. B. offene PRs)
+# Die App prüft beim Start ihren Kanal und bietet neuere Builds selbst zur Installation an.
 on:
   workflow_dispatch:
-  pull_request:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
 
 permissions:
   contents: write
@@ -18,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      UPDATE_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'android-latest' || 'android-dev' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -28,20 +31,22 @@ jobs:
       - run: ./gradlew :core:test
       # ubuntu-latest bringt ein Android SDK mit (ANDROID_HOME ist gesetzt).
       # Keine Secrets im APK: Login und Client-Kennung kommen zur Laufzeit.
+      # versionCode = Laufnummer, damit die App neuere Builds erkennt.
       - name: APK bauen
         run: ./gradlew :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: crtv-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
-      - name: Release „android-latest“ ersetzen
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      - name: Release „${{ env.UPDATE_CHANNEL }}“ ersetzen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           SHORT=${GITHUB_SHA::7}
-          cp app/build/outputs/apk/debug/app-debug.apk crtv-latest.apk
-          gh release delete android-latest --cleanup-tag --yes || true
-          gh release create android-latest crtv-latest.apk --prerelease \
-            --title "Android TV Test-Build (${SHORT})" \
-            --notes "Debug-signierter Test-Build von \`${SHORT}\`. Per ADB oder „Downloader“ auf dem Google TV installieren."
+          cp app/build/outputs/apk/debug/app-debug.apk crtv.apk
+          printf '{"versionCode":%s,"versionName":"0.1.0-%s","branch":"%s"}\n' \
+            "$GITHUB_RUN_NUMBER" "$SHORT" "$GITHUB_REF_NAME" > version.json
+          gh release delete "$UPDATE_CHANNEL" --cleanup-tag --yes || true
+          gh release create "$UPDATE_CHANNEL" crtv.apk version.json --prerelease --target "$GITHUB_SHA" \
+            --title "Android TV Test-Build ${UPDATE_CHANNEL} (${SHORT})" \
+            --notes "Debug-signierter Test-Build von \`${SHORT}\` (${GITHUB_REF_NAME}). Die App bietet ihn selbst als Update an."
