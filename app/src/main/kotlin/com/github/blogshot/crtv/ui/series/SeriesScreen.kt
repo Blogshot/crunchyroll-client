@@ -92,14 +92,14 @@ fun SeriesScreen(vm: SeriesViewModel, onPlay: (EpisodeCard) -> Unit) {
                             modifier = Modifier.fillMaxWidth(0.6f),
                         )
                     }
-                    is Loadable.Error -> ErrorRow(vm.series::refresh)
+                    is Loadable.Error -> ErrorRow(vm.series::refresh, s.error)
                     Loadable.Loading -> Text("Lade …")
                 }
             }
         }
         item("seasons") {
-            when (seasons) {
-                is Loadable.Error -> ErrorRow(vm.seasons::refresh)
+            when (val ss = seasons) {
+                is Loadable.Error -> ErrorRow(vm.seasons::refresh, ss.error)
                 else -> SeasonPicker(seasonList, current?.id, vm::select)
             }
         }

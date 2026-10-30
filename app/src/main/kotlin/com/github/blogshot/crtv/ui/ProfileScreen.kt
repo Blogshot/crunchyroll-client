@@ -36,6 +36,8 @@ import com.github.blogshot.crtv.core.content.Loadable
 import com.github.blogshot.crtv.core.content.Profile
 import com.github.blogshot.crtv.ui.theme.CrColors
 import com.github.blogshot.crtv.ui.theme.GlassClickable
+import com.github.blogshot.crtv.ui.theme.GlassOutlinedButton as OutlinedButton
+import com.github.blogshot.crtv.ui.components.ErrorDetail
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -63,17 +65,25 @@ class ProfileViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    /** Notausgang, wenn die Profil-API nicht mitspielt: mit dem Standardprofil des Logins weitermachen. */
+    fun skip(onDone: () -> Unit) {
+        viewModelScope.launch {
+            runCatching { c.session.confirmProfile() }
+            onDone()
+        }
+    }
+
     fun choose(profile: Profile, onDone: () -> Unit) {
         viewModelScope.launch {
             _switching.value = true
-            val ok = runCatching { c.session.switchProfile(profile.id) }.isSuccess
+            val result = runCatching { c.session.switchProfile(profile.id) }
             _switching.value = false
-            if (ok) {
+            if (result.isSuccess) {
                 // Weiterschauen, Watchlist usw. gehören zum Profil: alten Stand verwerfen.
                 c.cache.invalidate("")
                 onDone()
             } else {
-                _profiles.value = Loadable.Error(IllegalStateException("Profilwechsel fehlgeschlagen"))
+                _profiles.value = Loadable.Error(IllegalStateException("Profilwechsel fehlgeschlagen", result.exceptionOrNull()))
             }
         }
     }
@@ -95,9 +105,11 @@ fun ProfileScreen(vm: ProfileViewModel, onDone: () -> Unit, onLogout: () -> Unit
             Loadable.Loading -> Text("Lade Profile …")
             is Loadable.Error -> {
                 Text("Profile konnten nicht geladen werden.", style = MaterialTheme.typography.bodyLarge)
+                ErrorDetail(s.error)
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Button(onClick = vm::load) { Text("Erneut versuchen") }
-                    Button(onClick = onLogout) { Text("Abmelden") }
+                    OutlinedButton(onClick = { vm.skip(onDone) }) { Text("Ohne Profilwahl weiter") }
+                    OutlinedButton(onClick = onLogout) { Text("Abmelden") }
                 }
             }
             is Loadable.Content -> {

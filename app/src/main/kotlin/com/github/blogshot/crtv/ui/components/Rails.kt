@@ -49,7 +49,7 @@ fun <T> Rail(
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 48.dp))
         when (state) {
             Loadable.Loading -> Placeholder("Lade …")
-            is Loadable.Error -> ErrorRow(onRetry)
+            is Loadable.Error -> ErrorRow(onRetry, state.error)
             is Loadable.Content -> if (state.data.isEmpty()) {
                 Placeholder(emptyText)
             } else {
@@ -74,9 +74,10 @@ private fun Placeholder(text: String) {
 }
 
 @Composable
-fun ErrorRow(onRetry: () -> Unit) {
+fun ErrorRow(onRetry: () -> Unit, error: Throwable? = null) {
     Column(Modifier.padding(start = 48.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Konnte nicht geladen werden.", style = MaterialTheme.typography.bodyLarge)
+        error?.let { ErrorDetail(it) }
         Button(onClick = onRetry) { Text("Erneut versuchen") }
     }
 }
@@ -127,6 +128,21 @@ fun EpisodeTile(item: EpisodeCard, onClick: () -> Unit, showSeries: Boolean = tr
             Text("${sec / 60} von ${total / 60} Min.", style = MaterialTheme.typography.labelMedium)
         }
     }
+}
+
+/** Technischer Grund in klein, damit Fehler aus Screenshots eingegrenzt werden können. */
+@Composable
+fun ErrorDetail(error: Throwable) {
+    Text(
+        describeError(error),
+        style = MaterialTheme.typography.labelSmall,
+        color = com.github.blogshot.crtv.ui.theme.CrColors.TextMuted,
+    )
+}
+
+fun describeError(error: Throwable): String {
+    val chain = generateSequence(error) { it.cause }.take(3).toList()
+    return chain.joinToString(" ← ") { "${it::class.simpleName}: ${it.message.orEmpty()}" }
 }
 
 fun episodeLabel(e: EpisodeCard): String {

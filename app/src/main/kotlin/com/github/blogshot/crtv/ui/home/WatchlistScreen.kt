@@ -46,7 +46,7 @@ fun WatchlistScreen(vm: WatchlistViewModel, reselect: Int, onOpenSeries: (MediaC
 
     when (val s = state) {
         Loadable.Loading -> Text("Lade …", modifier = Modifier.padding(48.dp))
-        is Loadable.Error -> ErrorRow(vm.watchlist::refresh)
+        is Loadable.Error -> ErrorRow(vm.watchlist::refresh, s.error)
         is Loadable.Content -> if (s.data.isEmpty()) {
             Text("Watchlist ist leer.", modifier = Modifier.padding(48.dp))
         } else {

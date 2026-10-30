@@ -88,7 +88,7 @@ fun SearchScreen(vm: SearchViewModel, onOpenSeries: (MediaCard) -> Unit) {
         )
         when (val r = results) {
             Loadable.Loading -> Text("Suche …", modifier = Modifier.padding(horizontal = 48.dp))
-            is Loadable.Error -> ErrorRow(vm::retry)
+            is Loadable.Error -> ErrorRow(vm::retry, r.error)
             is Loadable.Content -> if (r.data.isEmpty() && query.isNotBlank()) {
                 Text("Keine Treffer.", modifier = Modifier.padding(horizontal = 48.dp))
             } else {
